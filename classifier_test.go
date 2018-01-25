@@ -69,6 +69,46 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestMainWithReader(m *testing.M) {
+	a30, err := ReadLicenseFile("AGPL-3.0.txt")
+	if err != nil {
+		log.Fatalf("error reading contents of AGPL-3.0.txt: %v", err)
+	}
+	a30h, err := ReadLicenseFile("AGPL-3.0.header.txt")
+	if err != nil {
+		log.Fatalf("error reading contents of AGPL-3.0.header.txt: %v", err)
+	}
+	a20, err := ReadLicenseFile("Apache-2.0.txt")
+	if err != nil {
+		log.Fatalf("error reading contents of Apache-2.0.txt: %v", err)
+	}
+	b3, err := ReadLicenseFile("BSD-3-Clause.txt")
+	if err != nil {
+		log.Fatalf("error reading contents of BSD-3-Clause.txt: %v", err)
+	}
+	g2, err := ReadLicenseFile("GPL-2.0.txt")
+	if err != nil {
+		log.Fatalf("error reading contents of GPL-2.0.txt: %v", err)
+	}
+	cc20, err := ReadLicenseFile("CC-BY-NC-2.0.txt")
+	if err != nil {
+		log.Fatalf("error reading contents of CC-BY-NC-2.0.txt: %v", err)
+	}
+
+	agpl30 = TrimExtraneousTrailingText(string(a30))
+	agpl30Header = TrimExtraneousTrailingText(string(a30h))
+	apache20 = TrimExtraneousTrailingText(string(a20))
+	bsd3 = TrimExtraneousTrailingText(string(b3))
+	gpl20 = TrimExtraneousTrailingText(string(g2))
+	ccbync20 = TrimExtraneousTrailingText(string(cc20))
+
+	classifier, err = New(DefaultConfidenceThreshold)
+	if err != nil {
+		log.Fatalf("cannot create license classifier: %v", err)
+	}
+	os.Exit(m.Run())
+}
+
 func TestClassifier_NearestMatch(t *testing.T) {
 	tests := []struct {
 		description    string

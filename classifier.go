@@ -79,11 +79,17 @@ type License struct {
 
 // New creates a license classifier and pre-loads it with known open source licenses.
 func New(threshold float64) (*License, error) {
-	classifier := &License{
-		c:         stringclassifier.New(stringclassifier.DefaultConfidenceThreshold, Normalizers...),
-		Threshold: threshold,
-	}
+	classifier := defaultClassifier(threshold)
 	if err := classifier.registerLicenses(LicenseArchive); err != nil {
+		return nil, fmt.Errorf("cannot register licenses: %v", err)
+	}
+	return classifier, nil
+}
+
+// New creates a license classifier and pre-loads it with the licenses read with reader.
+func NewFromReader(threshold float64, r io.Reader) (*License, error) {
+	classifier := defaultClassifier(threshold)
+	if err := classifier.registerLicensesFromReader(r); err != nil {
 		return nil, fmt.Errorf("cannot register licenses: %v", err)
 	}
 	return classifier, nil
@@ -151,6 +157,13 @@ func (c *License) MultipleMatch(contents string, includeHeaders bool) stringclas
 	return matches
 }
 
+func defaultClassifier(threshold float64) *License {
+	return &License{
+		c:         stringclassifier.New(stringclassifier.DefaultConfidenceThreshold, Normalizers...),
+		Threshold: threshold,
+	}
+}
+
 func normalizeText(s string) string {
 	for _, n := range Normalizers {
 		s = n(s)
@@ -175,17 +188,10 @@ type archivedValue struct {
 	set        *searchset.SearchSet
 }
 
-// registerLicenses loads all known licenses and adds them to c as known values
-// for comparison. The allocated space after ingesting the 'licenses.db'
-// archive is ~167M.
-func (c *License) registerLicenses(archive string) error {
-	contents, err := ReadLicenseFile(archive)
-	if err != nil {
-		return err
-	}
-
-	reader := bytes.NewReader(contents)
-	gr, err := gzip.NewReader(reader)
+// registerLicensesFromReader loads all licenses from a reader and adds them to c as known values
+// for comparison.
+func (c *License) registerLicensesFromReader(r io.Reader) error {
+	gr, err := gzip.NewReader(r)
 	if err != nil {
 		return err
 	}
@@ -238,6 +244,20 @@ func (c *License) registerLicenses(archive string) error {
 		}
 	}
 	return nil
+}
+
+// registerLicenses loads all known licenses and adds them to c as known values
+// for comparison. The allocated space after ingesting the 'licenses.db'
+// archive is ~167M.
+func (c *License) registerLicenses(archive string) error {
+	contents, err := ReadLicenseFile(archive)
+	if err != nil {
+		return err
+	}
+
+	reader := bytes.NewReader(contents)
+
+	return c.registerLicensesFromReader(reader)
 }
 
 // endOfLicenseText is text commonly associated with the end of a license. We
